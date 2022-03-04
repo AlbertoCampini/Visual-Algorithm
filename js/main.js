@@ -1,11 +1,14 @@
 var nodes = new vis.DataSet([
-    { id: 1, label: "Node 1", title: "1" },
-    { id: 2, label: "Node 2", title: "0" },
-    { id: 3, label: "Node 3", title: "0" },
-    { id: 4, label: "Node 4", title: "0" },
-    { id: 5, label: "Node 5", title: "0" },
-    { id: 6, label: "Node 6", title: "0" },
-    { id: 7, label: "Node 7", title: "0" },
+    { id: 1, label: "Node 1"},
+    { id: 2, label: "Node 2"},
+    { id: 3, label: "Node 3"},
+    { id: 4, label: "Node 4"},
+    { id: 5, label: "Node 5"},
+    { id: 6, label: "Node 6"},
+    { id: 7, label: "Node 7"},
+    { id: 8, label: "Node 8"},
+    { id: 9, label: "Node 8"},
+    { id: 10, label: "Node 8"},
 ]);
 
 // create an array with edges
@@ -20,6 +23,9 @@ var edges = new vis.DataSet([
     { from: 5, to: 3, label: "4", length: 4},
     { from: 6, to: 7, label: "2", length: 2},
     { from: 1, to: 7, label: "5", length: 5},
+    { from: 8, to: 9, label: "15", length: 15},
+    { from: 9, to: 10, label: "3", length: 3},
+    { from: 8, to: 10, label: "6", length: 6},
 ]);
 
 // create a network
@@ -37,7 +43,7 @@ var options = {
 };
 
 var network = new vis.Network(container, data, options);
-let startingNode = 3
+
 network.on("selectEdge", function (params) {
     console.log("selectEdge Event:", params);
     startingNode = params.nodes[0]
@@ -61,35 +67,17 @@ network.on("click", function (params) {
 });
 
 
-data.nodes.forEach((node) =>{
-    console.log(node)
-})
-
-
+let startingNode = 1
+let endingNode = null
 let visitedNodes = []
 let visitedNodesPrevious = []
 let visitedEdges = []
-let weightEdges = [{}]
 let cut = []
 
-
-// A Javascript program for Dijkstra's single
-// source shortest path algorithm.
-// The program is for adjacency matrix
-// representation of the graph
-let V = data.nodes.length;
-
-// A utility function to find the
-// vertex with minimum distance
-// length, from the set of vertices
-// not yet included in shortest
-// path tree
 function minDistance()
 {
-    // Initialize min length
     let min = Number.MAX_VALUE;
     let min_edge = -1;
-
     for(let v = 0; v < cut.length; v++)
     {
         console.log(getWeight(cut[v]), min)
@@ -124,17 +112,12 @@ function updateVisitedNode(nodeID){
 }
 
 
-
 function getWeight(edgeID){
     let label = network.body.edges[edgeID].options.label
     return label.split(' ').length < 3 ? parseInt(label) : parseInt(label.split(' ')[0]) + parseInt(label.split(' ')[2])
 
 }
 
-function weight(edgeID){
-
-
-}
 
 
 function getNewCut(){
@@ -169,10 +152,6 @@ function getNewCut(){
 
 
 
-// Function that implements Dijkstra's
-// single source shortest path algorithm
-// for a graph represented using adjacency
-// matrix representation
 async function dijkstra(){
     visitedNodes.push(nodes.get(startingNode))
     updateVisitedNode(startingNode)
@@ -186,8 +165,23 @@ async function dijkstra(){
     getNewCut()
     await new Promise(r => setTimeout(r, 3000));
     console.log("Nuovo Cut: ",cut)
-    updateVisitedEdge(minDistance())
+    let distance = minDistance()
+        distance !== -1 ? updateVisitedEdge(distance) :
+
     await new Promise(r => setTimeout(r, 3000));
+
+    if(distance === -1){
+        console.log("stop")
+        visitedNodesPrevious = []
+        visitedEdges = []
+        visitedNodes = []
+        cut = []
+        break;
+    }
+
+
+    if(endingNode !== null && visitedNodes.includes(nodes.get(endingNode)))
+       break;
 
     }
 
