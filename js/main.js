@@ -1,4 +1,4 @@
-var nodes = new vis.DataSet([
+let nodes = new vis.DataSet([
     { id: 1, label: "Node 1"},
     { id: 2, label: "Node 2"},
     { id: 3, label: "Node 3"},
@@ -12,7 +12,7 @@ var nodes = new vis.DataSet([
 ]);
 
 // create an array with edges
-var edges = new vis.DataSet([
+let edges = new vis.DataSet([
     {id: '1-3', from: 1, to: 3, label: "23", length: 23},
     {id: '1-2', from: 1, to: 2, label: "3", length: 3 },
     {id: '2-4', from: 2, to: 4, label: "12", length: 12},
@@ -29,13 +29,13 @@ var edges = new vis.DataSet([
 ]);
 
 // create a network
-var container = document.getElementById("mynetwork");
-var data = {
+let container = document.getElementById("mynetwork");
+let data = {
     nodes: nodes,
     edges: edges,
 };
 
-var options = {
+let options = {
     interaction: { hover: true },
     locale: 'it',
     manipulation: {
@@ -43,7 +43,7 @@ var options = {
     },
 };
 
-var network = new vis.Network(container, data, options);
+let network = new vis.Network(container, data, options);
 
 network.on("selectEdge", function (params) {
     console.log("selectEdge Event:", params);
@@ -51,17 +51,13 @@ network.on("selectEdge", function (params) {
     console.log(startingNode)
 });
 
-network.on("controlNodeDragging", function (params) {
-    params.event = "[original event]";
-    params.edges
-    document.getElementById("eventSpanHeading").innerText =
-        "control node dragging event:";
-    document.getElementById("eventSpanContent").innerText = JSON.stringify(
-        params,
-        null,
-        4
-    );
+network.on("controlNodeDragEnd", function () {
+    network.body.data.edges.forEach((edge)=>{
+        if(getWeight(edge.id) === null)
+            network.updateEdge(edge.id,{label: "0"})
+    })
 });
+
 network.on("click", function (params) {
     params.event = "[original event]";
 
@@ -77,44 +73,51 @@ let visitedNodes = []
 let visitedNodesPrevious = []
 let visitedEdges = []
 let cut = []
+const visitedColor = '#93c47d'
+const cutColor = '#f44336'
+const defaultColor = '#000000'
 
 function minDistance()
 {
     let min = Number.MAX_VALUE;
-    let min_edge = -1;
+    let minEdge = null;
     for(let v = 0; v < cut.length; v++)
     {
         //console.log(getWeight(cut[v]), min)
         //console.log((visitedNodes.includes(nodes.get(network.body.edges[cut[v]].options.to) && visitedNodes.includes(nodes.get(network.body.edges[cut[v]].options.from)))),network.body.edges[cut[v]].options.from,network.body.edges[cut[v]].options.to)
        if(getWeight(cut[v]) < min && !(visitedNodes.includes(network.body.data.nodes.get(network.body.edges[cut[v]].options.to) && visitedNodes.includes(network.body.data.nodes.get(network.body.edges[cut[v]].options.from))))){
-           min_edge = cut[v];
+           minEdge = cut[v];
            min = getWeight([cut[v]])
 
        }
 
     }
-    console.log(min_edge)
-    return min_edge;
+    console.log(minEdge)
+    return minEdge;
 }
 
 
-function updateVisitedEdge(edgeID){
-    network.updateEdge(edgeID,{color: '#93c47d'});
+function updateNetwork(edgeID){
+    //Update new visited edge with default color and insert into visited edges array
+    network.updateEdge(edgeID,{color: visitedColor});
     visitedEdges.push(edgeID)
+
+    //Copy current visited node use to calculate weight in getNewCut() function
     visitedNodes.forEach((n) =>{visitedNodesPrevious.push(n)})
-    let node = visitedNodes.includes(nodes.get(network.body.data.edges.get(edgeID).to)) ? nodes.get(network.body.data.edges.get(edgeID).from) :  nodes.get(network.body.data.edges.get(edgeID).to)
+    let node = visitedNodes.includes(nodes.get(network.body.data.edges.get(edgeID).to)) ? nodes.get(network.body.data.edges.get(edgeID).from) : nodes.get(network.body.data.edges.get(edgeID).to)
     visitedNodes.push(node)
+
+    //Update color for all edges excluded visited
     network.body.data.edges.forEach((edge)=>{
         if(!visitedEdges.includes(edge.id))
-            network.updateEdge(edge.id,{color: 'black'})
+            network.updateEdge(edge.id,{color: defaultColor})
     })
     cut = []
-    updateVisitedNode(node.id)
+
+    //Update new visited node
+    network.updateClusteredNode(node.id,{color: visitedColor})
 }
 
-function updateVisitedNode(nodeID){
-    network.updateClusteredNode(nodeID,{color: '#93c47d'})
-}
 
 
 function getWeight(edgeID){
@@ -124,17 +127,6 @@ function getWeight(edgeID){
 
     return label.split(' ').length < 3 ? parseInt(label) : parseInt(label.split(' ')[0]) + parseInt(label.split(' ')[2])
 
-}
-
-function addingEdges(){
-    edges.add({ from: 3, to: 10, label: "6", length: 6})
-    network = new vis.Network(container, data, options);
-
-    network.on("selectEdge", function (params) {
-        console.log("selectEdge Event:", params);
-        startingNode = params.nodes[0]
-        console.log(startingNode)
-    });
 }
 
 
@@ -159,7 +151,7 @@ function getNewCut(){
                     network.updateEdge(edgeConnected,{label: getWeight(edgeConnected) + " + " + previousWeight})
                 //console.log("Nuovo peso = ", parseInt(edges.get(edgeConnected).length) + previousWeight, edges.get(edgeConnected).length + " + " +previousWeight)
                 network.updateEdge(edgeConnected,{length: getWeight(edgeConnected) + previousWeight })
-                network.updateEdge(edgeConnected,{color: '#f44336'})
+                network.updateEdge(edgeConnected,{color: cutColor})
                 cut.push(network.body.edges[edgeConnected].id)
                 console.log(network.body.data.edges.get(edgeConnected))
 
@@ -191,15 +183,19 @@ async function dijkstra(){
 
     if(!checkDistance())
         return
+    
 
     visitedNodes.push(nodes.get(startingNode))
     updateVisitedNode(startingNode)
 
-    for (let i = 0; i < nodes.length - 1; i++) {
+    for (let i = 0; i < network.body.data.nodes.length - 1; i++) {
 
-    if(nodes.length === visitedNodes.length)
+    if(endingNode !== null && visitedNodes.includes(nodes.get(endingNode)))
         break;
 
+    if(network.body.data.nodes.length === visitedNodes.length)
+        break;
+    
     console.log("Step ",i)
     console.log("Nodi visitati: ",visitedNodes)
     console.log("Archi visitati: ",visitedEdges)
@@ -210,19 +206,15 @@ async function dijkstra(){
     await new Promise(r => setTimeout(r, 3000));
 
     console.log("Nuovo Cut: ",cut)
-    let distance = minDistance()
-        distance !== -1 ? updateVisitedEdge(distance) :
+    let minEdge = minDistance()
+        minEdge !== null ? updateNetwork(minEdge) :
 
     await new Promise(r => setTimeout(r, 3000));
 
-    if(distance === -1){
+    if(minEdge === null){
         resetDijkstra();
         break;
     }
-
-
-    if(endingNode !== null && visitedNodes.includes(nodes.get(endingNode)))
-       break;
 
     }
     resetDijkstra()
