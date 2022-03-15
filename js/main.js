@@ -183,10 +183,9 @@ async function dijkstra(){
 
     if(!checkDistance())
         return
-    
 
     visitedNodes.push(nodes.get(startingNode))
-    updateVisitedNode(startingNode)
+    network.updateClusteredNode(startingNode,{color: visitedColor})
 
     for (let i = 0; i < network.body.data.nodes.length - 1; i++) {
 
